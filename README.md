@@ -11,7 +11,7 @@ http_check_exporter 是一个prometheus exporter 。 同时也执行cli模式运
 同时，会对返回结果进行字符串匹配。
 
 
-## 编译
+## 编译&下载安装
 
 获取代码以后在代码目录执行:
 
@@ -20,6 +20,9 @@ http_check_exporter 是一个prometheus exporter 。 同时也执行cli模式运
   go mod tidy
   GOOS=linux GOARCH=amd64 go build http_check_exporter.go
   ```
+ 
+ 
+ 直接 [下载](https://github.com/huangmingyou/http_check_exporter/releases)
 
 
 
