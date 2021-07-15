@@ -54,7 +54,7 @@ http_check_exporter 是一个prometheus exporter 。 同时也执行cli模式运
   # 命令行方式执行，直接输出结果
   ./http_check_exporter -config ./config.yml -mode cli
   # web 方式，以exporter方式运行，访问http://youip:8080/metrics 获取结果
-  ./http_check_exporter -config ./config.yml -mode cli
+  ./http_check_exporter -config ./config.yml -mode web
   ```
   
 
