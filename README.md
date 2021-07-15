@@ -40,20 +40,26 @@ config
 output
 =======
 dns 查询时间
+
 http_dns_time{name="test1"} 		44095447
 
 connect 时间
+
 http_connect_time{name="test1"} 		10770413
 
 tls 握手时间
+
 http_tls_handshake_time{name="test1"} 	199979338
 
 收到第一个字节的时间	
+
 http_firstbyte_time{name="test1"} 	268094039
 
 总时间
+
 http_total_time{name="test1"} 		268342993
 
 结果是否匹配respons
+
 http_content_match{name="test1"} 	1
 
