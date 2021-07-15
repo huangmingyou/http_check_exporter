@@ -1,6 +1,7 @@
 ---
 thread: 10
 # crontab 格式的配置，定期更新数据"
+# or "@every 1m30s"
 updatecron: "* * * * *"
 targets:
  - name: test1

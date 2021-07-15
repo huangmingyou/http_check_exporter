@@ -152,7 +152,8 @@ func runcli() {
 		res2 += <-ch1
 	}
 	metrics = res2
-	fmt.Println(time.Now())
+//	fmt.Println(time.Now())
+	fmt.Println(res2)
 }
 func main() {
 	cfgPath, runmode, err := ParseFlags()
@@ -171,7 +172,7 @@ func main() {
   cjob.Start()
 //
 	if runmode == "web" {
-		//定期更新
+		//init data
 		runcli()
 		//
 		http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
