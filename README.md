@@ -1,2 +1,12 @@
-配置yaml文件
-检查web站点，打印出各阶段耗时，对比返回结果。
+run
+===
+
+./main -config ./config.yml -mode web
+
+test
+
+curl 127.0.0.1:8080/metrics
+
+or 
+
+./mian -config ./config.yml -mode cli
