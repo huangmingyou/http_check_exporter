@@ -8,10 +8,10 @@ huangmingyou@gmail.com
 */
 
 import (
-"github.com/robfig/cron/v3"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -38,9 +38,9 @@ type U struct {
 }
 
 type C struct {
-	Thread    int    `yaml:"thread"`
+	Thread     int    `yaml:"thread"`
 	Updatecron string `yaml:"updatecron"`
-	Targets   []U    `yaml:",flow"`
+	Targets    []U    `yaml:",flow"`
 }
 
 var yc C
@@ -115,13 +115,17 @@ func timeGet(t U, c chan string) {
 	start = time.Now()
 	resp, err := tr.RoundTrip(req)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		c <- ""
+		return
 	}
 	defer resp.Body.Close()
 	res_str += fmt.Sprintf("http_total_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(start))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		c <- ""
+		return
 	}
 
 	matchv1 := 1
@@ -152,7 +156,7 @@ func runcli() {
 		res2 += <-ch1
 	}
 	metrics = res2
-//	fmt.Println(time.Now())
+	//	fmt.Println(time.Now())
 	fmt.Println(res2)
 }
 func main() {
@@ -166,11 +170,11 @@ func main() {
 		log.Fatalf("error: %v", err1)
 	}
 	cfgfile = cfgPath
-// cron job
-  cjob := cron.New()
-  cjob.AddFunc(yc.Updatecron, runcli)
-  cjob.Start()
-//
+	// cron job
+	cjob := cron.New()
+	cjob.AddFunc(yc.Updatecron, runcli)
+	cjob.Start()
+	//
 	if runmode == "web" {
 		//init data
 		runcli()
