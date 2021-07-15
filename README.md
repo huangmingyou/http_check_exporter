@@ -2,7 +2,9 @@
 build
 =====
 > go mod init  http_check_exporter
+
 > go mod tidy
+
 > go build http_check_exporter.go
 
 
@@ -10,7 +12,9 @@ run
 ===
 
 > ./main -config ./config.yml -mode web
+
 > test
+
 > curl 127.0.0.1:8080/metrics
 
 or 
@@ -30,10 +34,15 @@ config
 在返回结果中匹配respons中的字符串，返回匹配结果。
 
 > \- name: api
+
 >     url: http://api.example.cn/api
+
 >     method: POST
+
 >     respons: "you want"
+
 >     query: "url=http%3A%2F%2Fapi.example.com%2Fapi1&p1=abc"
+
 >     timeout: 10
 
 
