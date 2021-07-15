@@ -11,7 +11,7 @@ build
 run
 ===
 
-> ./main -config ./config.yml -mode web
+> ./http_check_exporter -config ./config.yml -mode web
 
 > test
 
@@ -19,7 +19,7 @@ run
 
 or 
 
-> ./mian -config ./config.yml -mode cli
+> ./http_check_exporter -config ./config.yml -mode cli
 
 
 config
