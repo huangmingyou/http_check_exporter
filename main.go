@@ -8,6 +8,7 @@ huangmingyou@gmail.com
 */
 
 import (
+"github.com/robfig/cron/v3"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -23,7 +24,10 @@ import (
 	"strings"
 	"time"
 )
+
 var cfgfile string
+var metrics string
+
 type U struct {
 	Name    string        `yaml:"name"`
 	Url     string        `yaml:"url"`
@@ -34,9 +38,12 @@ type U struct {
 }
 
 type C struct {
-	Thread  int `yaml:"thread"`
-	Targets []U `yaml:",flow"`
+	Thread    int    `yaml:"thread"`
+	Updatecron string `yaml:"updatecron"`
+	Targets   []U    `yaml:",flow"`
 }
+
+var yc C
 
 func ValidateConfigPath(path string) error {
 	s, err := os.Stat(path)
@@ -77,33 +84,29 @@ func timeGet(t U, c chan string) {
 			Timeout:   t.Timeout * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          10,
-		IdleConnTimeout:       10 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		ForceAttemptHTTP2:   true,
+		MaxIdleConns:        10,
+		IdleConnTimeout:     10 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
 		//ExpectContinueTimeout: 10 * time.Second,
 	}
 
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dsi httptrace.DNSStartInfo) { dns = time.Now() },
 		DNSDone: func(ddi httptrace.DNSDoneInfo) {
-			fmt.Printf("http_dns_time{name=\"%s\"} \t\t%v\n", t.Name, time.Since(dns))
 			res_str = fmt.Sprintf("http_dns_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(dns))
 		},
 		TLSHandshakeStart: func() { tlsHandshake = time.Now() },
 		TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
-			fmt.Printf("http_tls_handshake_time{name=\"%s\"} \t%v\n", t.Name, time.Since(tlsHandshake))
 			res_str += fmt.Sprintf("http_tls_handshake_time{name=\"%s\"} \t%d\n", t.Name, time.Since(tlsHandshake))
 		},
 
 		ConnectStart: func(network, addr string) { connect = time.Now() },
 		ConnectDone: func(network, addr string, err error) {
-			fmt.Printf("http_connect_time{name=\"%s\"} \t\t%v\n", t.Name, time.Since(connect))
 			res_str += fmt.Sprintf("http_connect_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(connect))
 		},
 
 		GotFirstResponseByte: func() {
-			fmt.Printf("http_firstbyte_time{name=\"%s\"} \t%v\n", t.Name, time.Since(start))
 			res_str += fmt.Sprintf("http_firstbyte_time{name=\"%s\"} \t%d\n", t.Name, time.Since(start))
 		},
 	}
@@ -115,7 +118,6 @@ func timeGet(t U, c chan string) {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	fmt.Printf("http_total_time{name=\"%s\"} \t\t%v\n", t.Name, time.Since(start))
 	res_str += fmt.Sprintf("http_total_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(start))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -128,7 +130,6 @@ func timeGet(t U, c chan string) {
 	if matchv {
 		matchv1 = 0
 	}
-	fmt.Printf("http_content_match{name=\"%s\"} \t%d\n", t.Name, matchv1)
 	res_str += fmt.Sprintf("http_content_match{name=\"%s\"} \t%d\n", t.Name, matchv1)
 	c <- res_str
 }
@@ -136,17 +137,8 @@ func timeGet(t U, c chan string) {
 func Exporter(w http.ResponseWriter, r *http.Request) {
 	ch1 := make(chan string)
 	res2 := ""
-	content, err := ioutil.ReadFile(cfgfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	c := C{}
-	err1 := yaml.Unmarshal(content, &c)
-	if err1 != nil {
-		log.Fatalf("error: %v", err1)
-	}
-	for i := 0; i < len(c.Targets); i++ {
-		go timeGet(c.Targets[i], ch1)
+	for i := 0; i < len(yc.Targets); i++ {
+		go timeGet(yc.Targets[i], ch1)
 		res2 += <-ch1
 	}
 	fmt.Fprintf(w, res2)
@@ -155,29 +147,36 @@ func Exporter(w http.ResponseWriter, r *http.Request) {
 func runcli() {
 	ch1 := make(chan string)
 	res2 := ""
-	content, err := ioutil.ReadFile(cfgfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	c := C{}
-	err1 := yaml.Unmarshal(content, &c)
-	if err1 != nil {
-		log.Fatalf("error: %v", err1)
-	}
-	for i := 0; i < len(c.Targets); i++ {
-		go timeGet(c.Targets[i], ch1)
+	for i := 0; i < len(yc.Targets); i++ {
+		go timeGet(yc.Targets[i], ch1)
 		res2 += <-ch1
 	}
+	metrics = res2
+	fmt.Println(time.Now())
 }
 func main() {
 	cfgPath, runmode, err := ParseFlags()
 	if err != nil {
 		log.Fatal(err)
 	}
+	content, err := ioutil.ReadFile(cfgPath)
+	err1 := yaml.Unmarshal(content, &yc)
+	if err1 != nil {
+		log.Fatalf("error: %v", err1)
+	}
 	cfgfile = cfgPath
+// cron job
+  cjob := cron.New()
+  cjob.AddFunc(yc.Updatecron, runcli)
+  cjob.Start()
+//
 	if runmode == "web" {
-		fmt.Println(cfgPath)
-		http.HandleFunc("/metrics", Exporter)
+		//定期更新
+		runcli()
+		//
+		http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, metrics)
+		})
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	} else {
 		runcli()

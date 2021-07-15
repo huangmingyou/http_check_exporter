@@ -1,5 +1,7 @@
 ---
 thread: 10
+# crontab 格式的配置，定期更新数据"
+updatecron: "* * * * *"
 targets:
  - name: test1
    url: http://127.0.0.1/hmy.pub
