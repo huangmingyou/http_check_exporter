@@ -23,13 +23,13 @@ import (
 	"strings"
 	"time"
 )
-
+var cfgfile string
 type U struct {
-	Name    string `yaml:"name"`
-	Url     string `yaml:"url"`
-	Method  string `yaml:"method"`
-	Respons string `yaml:"respons"`
-	Query   string `yaml:"query"`
+	Name    string        `yaml:"name"`
+	Url     string        `yaml:"url"`
+	Method  string        `yaml:"method"`
+	Respons string        `yaml:"respons"`
+	Query   string        `yaml:"query"`
 	Timeout time.Duration `yaml:"timeout"`
 }
 
@@ -81,7 +81,7 @@ func timeGet(t U, c chan string) {
 		MaxIdleConns:          10,
 		IdleConnTimeout:       10 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 10 * time.Second,
+		//ExpectContinueTimeout: 10 * time.Second,
 	}
 
 	trace := &httptrace.ClientTrace{
@@ -122,7 +122,7 @@ func timeGet(t U, c chan string) {
 		log.Fatal(err)
 	}
 
-        matchv1 := 1
+	matchv1 := 1
 	var validID = regexp.MustCompile(t.Respons)
 	matchv := validID.MatchString(string(body))
 	if matchv {
@@ -136,7 +136,7 @@ func timeGet(t U, c chan string) {
 func Exporter(w http.ResponseWriter, r *http.Request) {
 	ch1 := make(chan string)
 	res2 := ""
-	content, err := ioutil.ReadFile("./config.yml")
+	content, err := ioutil.ReadFile(cfgfile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -152,10 +152,10 @@ func Exporter(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, res2)
 }
 
-func runcli(cfg string) {
+func runcli() {
 	ch1 := make(chan string)
 	res2 := ""
-	content, err := ioutil.ReadFile(cfg)
+	content, err := ioutil.ReadFile(cfgfile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -174,12 +174,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cfgfile = cfgPath
 	if runmode == "web" {
 		fmt.Println(cfgPath)
-		http.HandleFunc("/metric", Exporter)
+		http.HandleFunc("/metrics", Exporter)
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	} else {
-		runcli(cfgPath)
+		runcli()
 	}
 
 }

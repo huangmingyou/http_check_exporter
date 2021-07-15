@@ -1,0 +1,21 @@
+---
+thread: 10
+targets:
+ - name: test1
+   url: http://127.0.0.1/hmy.pub
+   method: GET
+   respons: "AAAA"
+   query: nil
+   timeout: 10
+ - name: baidu
+   url: https://www.baidu.cn
+   method: GET
+   respons: vphoto
+   query: nil
+   timeout: 10
+ - name: api
+   url: http://api.example.cn/api
+   method: POST
+   respons: "you want"
+   query: "url=http%3A%2F%2Fapi.example.com%2Fapi1&p1=abc"
+   timeout: 10
