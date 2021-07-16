@@ -19,7 +19,6 @@ jobs:
         go-version: 1.16
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v  http_check_exporter.go
 
-    - name: Test
-      run: go test -v ./...
+
