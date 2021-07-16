@@ -72,6 +72,8 @@ func ParseFlags() (string, string, error) {
 
 func timeGet(t U, c chan string) {
 	var res_str string
+        var tmp_str string
+        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 0\n",t.Name)
 	req, _ := http.NewRequest(t.Method, t.Url, nil)
 	if "POST" == t.Method {
 		req, _ = http.NewRequest(t.Method, t.Url, strings.NewReader(t.Query))
@@ -116,7 +118,8 @@ func timeGet(t U, c chan string) {
 	resp, err := tr.RoundTrip(req)
 	if err != nil {
 		fmt.Println(err)
-		c <- ""
+        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 1\n",t.Name)
+		c <- tmp_str
 		return
 	}
 	defer resp.Body.Close()
@@ -124,7 +127,8 @@ func timeGet(t U, c chan string) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		c <- ""
+        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 1\n",t.Name)
+		c <- tmp_str
 		return
 	}
 
@@ -135,6 +139,7 @@ func timeGet(t U, c chan string) {
 		matchv1 = 0
 	}
 	res_str += fmt.Sprintf("http_content_match{name=\"%s\"} \t%d\n", t.Name, matchv1)
+        res_str += tmp_str
 	c <- res_str
 }
 
