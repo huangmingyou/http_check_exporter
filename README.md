@@ -44,7 +44,7 @@ http_check_exporter 是一个prometheus exporter 。
      url: https://www.baidu.cn
      #请求方式
      method: POST
-     respons: exampledata
+     respons: vphoto
      #参数
      query: testdata
      #connect 超时时间
