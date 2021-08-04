@@ -11,6 +11,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -28,6 +30,7 @@ import (
 var cfgfile string
 var metrics string
 
+// 配置文件结构
 type U struct {
 	Name    string        `yaml:"name"`
 	Url     string        `yaml:"url"`
@@ -45,6 +48,59 @@ type C struct {
 
 var yc C
 
+// 定义metrics
+var (
+	http_dns_time = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_dns_time",
+			Help: "dns 连接耗时",
+		},
+		[]string{"name"},
+	)
+	http_tls_handshake_time = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_tls_handshake_time",
+			Help: "ssl 握手耗时",
+		},
+		[]string{"name"},
+	)
+	http_connect_time = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_connect_time",
+			Help: "http 连接耗时",
+		},
+		[]string{"name"},
+	)
+	http_firstbyte_time = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_firstbyte_time",
+			Help: "接收到第一个字节耗时",
+		},
+		[]string{"name"},
+	)
+	http_total_time = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_total_time",
+			Help: "http总共耗时",
+		},
+		[]string{"name"},
+	)
+	http_site_connect = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_site_connect",
+			Help: "站点连通性",
+		},
+		[]string{"name"},
+	)
+	http_content_match = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_content_match",
+			Help: "返回内容是否匹配",
+		},
+		[]string{"name"},
+	)
+)
+
 func ValidateConfigPath(path string) error {
 	s, err := os.Stat(path)
 	if err != nil {
@@ -56,24 +112,22 @@ func ValidateConfigPath(path string) error {
 	return nil
 }
 
-func ParseFlags() (string, string, error) {
+func ParseFlags() (string, error) {
 	var configPath string
-	var mode string
 
 	flag.StringVar(&configPath, "config", "./config.yml", "path to config file")
-	flag.StringVar(&mode, "mode", "cli", "run mode, cli or web")
 
 	flag.Parse()
 	if err := ValidateConfigPath(configPath); err != nil {
-		return "", "", err
+		return "", err
 	}
-	return configPath, mode, nil
+	return configPath, nil
 }
 
 func timeGet(t U, c chan string) {
 	var res_str string
-        var tmp_str string
-        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 0\n",t.Name)
+	var tmp_str string
+	tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 0\n", t.Name)
 	req, _ := http.NewRequest(t.Method, t.Url, nil)
 	if "POST" == t.Method {
 		req, _ = http.NewRequest(t.Method, t.Url, strings.NewReader(t.Query))
@@ -96,20 +150,20 @@ func timeGet(t U, c chan string) {
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dsi httptrace.DNSStartInfo) { dns = time.Now() },
 		DNSDone: func(ddi httptrace.DNSDoneInfo) {
-			res_str = fmt.Sprintf("http_dns_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(dns))
+			http_dns_time.With(prometheus.Labels{"name": t.Name}).Set(float64(time.Since(dns) / time.Nanosecond))
 		},
 		TLSHandshakeStart: func() { tlsHandshake = time.Now() },
 		TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
-			res_str += fmt.Sprintf("http_tls_handshake_time{name=\"%s\"} \t%d\n", t.Name, time.Since(tlsHandshake))
+			http_tls_handshake_time.With(prometheus.Labels{"name": t.Name}).Set(float64(time.Since(tlsHandshake) / time.Nanosecond))
 		},
 
 		ConnectStart: func(network, addr string) { connect = time.Now() },
 		ConnectDone: func(network, addr string, err error) {
-			res_str += fmt.Sprintf("http_connect_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(connect))
+			http_connect_time.With(prometheus.Labels{"name": t.Name}).Set(float64(time.Since(connect) / time.Nanosecond))
 		},
 
 		GotFirstResponseByte: func() {
-			res_str += fmt.Sprintf("http_firstbyte_time{name=\"%s\"} \t%d\n", t.Name, time.Since(start))
+			http_firstbyte_time.With(prometheus.Labels{"name": t.Name}).Set(float64(time.Since(start) / time.Nanosecond))
 		},
 	}
 
@@ -118,19 +172,22 @@ func timeGet(t U, c chan string) {
 	resp, err := tr.RoundTrip(req)
 	if err != nil {
 		fmt.Println(err)
-        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 1\n",t.Name)
+		http_site_connect.With(prometheus.Labels{"name": t.Name}).Set(1)
+		fmt.Println("错误结束",t.Name)
 		c <- tmp_str
 		return
 	}
 	defer resp.Body.Close()
-	res_str += fmt.Sprintf("http_total_time{name=\"%s\"} \t\t%d\n", t.Name, time.Since(start))
+	http_total_time.With(prometheus.Labels{"name": t.Name}).Set(float64(time.Since(start) / time.Nanosecond))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-        tmp_str = fmt.Sprintf("http_site_connect{name=\"%s\"} 1\n",t.Name)
+		http_site_connect.With(prometheus.Labels{"name": t.Name}).Set(1)
+		fmt.Println("错误结束",t.Name)
 		c <- tmp_str
 		return
 	}
+	http_site_connect.With(prometheus.Labels{"name": t.Name}).Set(0)
 
 	matchv1 := 1
 	var validID = regexp.MustCompile(t.Respons)
@@ -138,8 +195,9 @@ func timeGet(t U, c chan string) {
 	if matchv {
 		matchv1 = 0
 	}
-	res_str += fmt.Sprintf("http_content_match{name=\"%s\"} \t%d\n", t.Name, matchv1)
-        res_str += tmp_str
+	http_content_match.With(prometheus.Labels{"name": t.Name}).Set(float64(matchv1))
+	res_str += tmp_str
+		fmt.Println("正常结束",t.Name)
 	c <- res_str
 }
 
@@ -162,10 +220,21 @@ func runcli() {
 	}
 	metrics = res2
 	//	fmt.Println(time.Now())
-	fmt.Println(res2)
+	//fmt.Println(res2)
+	fmt.Println("执行完成")
+}
+func regmetrics() {
+	prometheus.MustRegister(http_dns_time)
+	prometheus.MustRegister(http_tls_handshake_time)
+	prometheus.MustRegister(http_connect_time)
+	prometheus.MustRegister(http_firstbyte_time)
+	prometheus.MustRegister(http_total_time)
+	prometheus.MustRegister(http_site_connect)
+	prometheus.MustRegister(http_content_match)
 }
 func main() {
-	cfgPath, runmode, err := ParseFlags()
+	regmetrics()
+	cfgPath, err := ParseFlags()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -180,16 +249,11 @@ func main() {
 	cjob.AddFunc(yc.Updatecron, runcli)
 	cjob.Start()
 	//
-	if runmode == "web" {
-		//init data
-		runcli()
-		//
-		http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, metrics)
-		})
-		log.Fatal(http.ListenAndServe(":8080", nil))
-	} else {
-		runcli()
-	}
+	runcli()
+	//
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	log.Fatal(http.ListenAndServe(":8080", nil))
 
 }

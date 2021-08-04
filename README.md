@@ -2,7 +2,7 @@
 
 ## 简介
 
-http_check_exporter 是一个prometheus exporter 。 同时也可以cli模式运行。直接输出检查结果。
+http_check_exporter 是一个prometheus exporter 。 
 
 程序从yml文件读取待检查站点的配置，yml里面需要配置站点url, http请求方式(HEAD,GET,POST等),
 
@@ -54,13 +54,7 @@ http_check_exporter 是一个prometheus exporter 。 同时也可以cli模式运
 ## 运行
 
   ```bash
-  # 命令行方式执行，直接输出结果
-  ./http_check_exporter -config ./config.yml -mode cli
-  # web 方式，以exporter方式运行，访问http://youip:8080/metrics 获取结果
-  ./http_check_exporter -config ./config.yml -mode web
+  ./http_check_exporter -config ./config.yml
   ```
   
 
-## 执行逻辑
-
-周期访问站点缓存结果，避免访问/metrics的时候延迟过高。
