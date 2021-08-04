@@ -216,8 +216,10 @@ func runcli() {
 	res2 := ""
 	for i := 0; i < len(yc.Targets); i++ {
 		go timeGet(yc.Targets[i], ch1)
-		res2 += <-ch1
 	}
+	for i := 0 ; i<len(yc.Targets); i++ {
+		res2 += <-ch1
+        }
 	metrics = res2
 	//	fmt.Println(time.Now())
 	//fmt.Println(res2)
@@ -249,7 +251,7 @@ func main() {
 	cjob.AddFunc(yc.Updatecron, runcli)
 	cjob.Start()
 	//
-	runcli()
+//	runcli()
 	//
 
 	http.Handle("/metrics", promhttp.Handler())
