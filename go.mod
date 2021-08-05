@@ -1,4 +1,4 @@
-module http_check_exporter.go
+module github.com/huangmingyou/http_check_exporter
 
 go 1.16
 
